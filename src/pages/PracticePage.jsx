@@ -3,31 +3,46 @@ import CodeViewer from "../components/typing/CodeViewer";
 import SnippetSelector from "../components/typing/SnippetSelector";
 import TypingInput from "../components/typing/TypingInput";
 import DiffOverlay from "../components/typing/DiffOverlay";
+import DifficultyBadge from "../components/typing/DifficultyBadge";
 import ErrorSummary from "../components/typing/ErrorSummary";
 import LiveStats from "../components/stats/LiveStats";
 import WpmChart from "../components/stats/WpmChart";
 import useTyping from "../hooks/useTyping";
 import { getRandomSnippet } from "../data/snippets";
 import { saveResult } from "../utils/storage";
+import { calculateScore, getGrade } from "../utils/difficulty";
 
 export default function PracticePage() {
   const [snippet, setSnippet] = useState(() => getRandomSnippet());
   const [showDiff, setShowDiff] = useState(true);
+  const [lastScore, setLastScore] = useState(null);
   const typing = useTyping(snippet?.code || "");
 
   const handleSelectSnippet = (newSnippet) => {
     setSnippet(newSnippet);
+    setLastScore(null);
   };
 
   // snippet 변경 시 리셋
   useEffect(() => {
     typing.resetTyping();
+    setLastScore(null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [snippet?.id]);
 
-  // 타이핑 완료 시 결과 저장
+  // 타이핑 완료 시 결과 저장 + 점수 계산
   useEffect(() => {
     if (typing.status === "finished" && snippet) {
+      const score = calculateScore(
+        typing.wpm,
+        typing.accuracy,
+        snippet.difficulty,
+        snippet.code.length,
+      );
+      const grade = getGrade(score);
+
+      setLastScore({ score, ...grade });
+
       saveResult({
         snippetId: snippet.id,
         language: snippet.language,
@@ -39,6 +54,8 @@ export default function PracticePage() {
         elapsed: typing.elapsed,
         correctCount: typing.correctCount,
         incorrectCount: typing.incorrectCount,
+        score,
+        grade: grade.grade,
         samples: typing.samples,
       });
     }
@@ -72,16 +89,42 @@ export default function PracticePage() {
         <WpmChart samples={typing.samples} />
       )}
 
+      {/* 완료 시 점수 카드 */}
+      {typing.status === "finished" && lastScore && (
+        <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/5 p-6 text-center space-y-3">
+          <div className="text-4xl font-bold">
+            <span className={lastScore.color}>{lastScore.grade}</span>
+          </div>
+          <div className="text-lg text-gray-200">
+            <span className="text-emerald-400 font-bold">
+              {lastScore.score}
+            </span>
+            <span className="text-gray-500"> 점</span>
+          </div>
+          <div className={`text-sm ${lastScore.color}`}>{lastScore.label}</div>
+          <div className="flex items-center justify-center gap-4 text-xs text-gray-400">
+            <span>WPM {typing.wpm}</span>
+            <span>·</span>
+            <span>정확도 {typing.accuracy}%</span>
+            <span>·</span>
+            <span>{typing.formattedTime}</span>
+          </div>
+        </div>
+      )}
+
       {/* 원본 코드 뷰어 */}
       {snippet && (
         <div className="space-y-2">
-          <div className="flex items-center gap-2">
-            <span className="text-xs font-medium text-gray-500 uppercase tracking-wider">
-              원본 코드
-            </span>
-            <span className="text-xs text-gray-600">
-              — 아래 코드를 그대로 타이핑하세요
-            </span>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-medium text-gray-500 uppercase tracking-wider">
+                원본 코드
+              </span>
+              <span className="text-xs text-gray-600">
+                — 아래 코드를 그대로 타이핑하세요
+              </span>
+            </div>
+            <DifficultyBadge snippet={snippet} showAnalysis />
           </div>
           <CodeViewer
             snippet={snippet}

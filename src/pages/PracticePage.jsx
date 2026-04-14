@@ -8,6 +8,7 @@ import ErrorSummary from "../components/typing/ErrorSummary";
 import LiveStats from "../components/stats/LiveStats";
 import WpmChart from "../components/stats/WpmChart";
 import KeyboardHeatmap from "../components/stats/KeyboardHeatmap";
+import ResultReport from "../components/stats/ResultReport";
 import useTyping from "../hooks/useTyping";
 import { getRandomSnippet } from "../data/snippets";
 import { saveResult } from "../utils/storage";
@@ -25,12 +26,19 @@ export default function PracticePage() {
     setLastScore(null);
   };
 
+  const handleNextSnippet = () => {
+    const next = getRandomSnippet();
+    setSnippet(next);
+    setLastScore(null);
+  };
+
   useEffect(() => {
     typing.resetTyping();
     setLastScore(null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [snippet?.id]);
 
+  // 타이핑 완료 시 결과 저장
   useEffect(() => {
     if (typing.status === "finished" && snippet) {
       const score = calculateScore(
@@ -61,8 +69,36 @@ export default function PracticePage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [typing.status]);
 
-  const hasErrors = typing.incorrectCount > 0;
+  // 완료 후 → 결과 리포트 화면
+  if (typing.status === "finished" && lastScore && snippet) {
+    return (
+      <div className="space-y-6">
+        {/* 스니펫 선택기는 유지 */}
+        <SnippetSelector
+          onSelect={handleSelectSnippet}
+          currentSnippetId={snippet.id}
+        />
 
+        <ResultReport
+          snippet={snippet}
+          wpm={typing.wpm}
+          accuracy={typing.accuracy}
+          elapsed={typing.elapsed}
+          formattedTime={typing.formattedTime}
+          correctCount={typing.correctCount}
+          incorrectCount={typing.incorrectCount}
+          score={lastScore.score}
+          grade={lastScore.grade}
+          mistakes={typing.mistakes}
+          samples={typing.samples}
+          onRetry={typing.resetTyping}
+          onNext={handleNextSnippet}
+        />
+      </div>
+    );
+  }
+
+  // 타이핑 진행 중 / 대기 → 기존 UI
   return (
     <div className="space-y-6">
       {/* 스니펫 선택기 */}
@@ -88,29 +124,6 @@ export default function PracticePage() {
       {/* WPM 실시간 차트 */}
       {typing.status !== "idle" && typing.samples.length >= 2 && (
         <WpmChart samples={typing.samples} />
-      )}
-
-      {/* 완료 시 점수 카드 */}
-      {typing.status === "finished" && lastScore && (
-        <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/5 p-6 text-center space-y-3">
-          <div className="text-4xl font-bold">
-            <span className={lastScore.color}>{lastScore.grade}</span>
-          </div>
-          <div className="text-lg text-gray-200">
-            <span className="text-emerald-400 font-bold">
-              {lastScore.score}
-            </span>
-            <span className="text-gray-500"> 점</span>
-          </div>
-          <div className={`text-sm ${lastScore.color}`}>{lastScore.label}</div>
-          <div className="flex items-center justify-center gap-4 text-xs text-gray-400">
-            <span>WPM {typing.wpm}</span>
-            <span>·</span>
-            <span>정확도 {typing.accuracy}%</span>
-            <span>·</span>
-            <span>{typing.formattedTime}</span>
-          </div>
-        </div>
       )}
 
       {/* 원본 코드 뷰어 */}
@@ -156,10 +169,9 @@ export default function PracticePage() {
         </div>
       )}
 
-      {/* 분석 패널 (타이핑 시작 후에만) */}
-      {snippet && typing.status !== "idle" && (
+      {/* 분석 패널 */}
+      {snippet && typing.status === "typing" && (
         <div className="space-y-4">
-          {/* 토글 버튼 */}
           <div className="flex items-center gap-2">
             <button
               onClick={() => setShowDiff(!showDiff)}
@@ -183,7 +195,6 @@ export default function PracticePage() {
             </button>
           </div>
 
-          {/* Diff 패널 */}
           {showDiff && (
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
               <div className="lg:col-span-2">
@@ -195,8 +206,9 @@ export default function PracticePage() {
             </div>
           )}
 
-          {/* 키보드 히트맵 */}
-          {showHeatmap && <KeyboardHeatmap mistakes={typing.mistakes} />}
+          {showHeatmap && typing.incorrectCount > 0 && (
+            <KeyboardHeatmap mistakes={typing.mistakes} />
+          )}
         </div>
       )}
     </div>

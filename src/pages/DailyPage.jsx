@@ -1,7 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import CodeViewer from "../components/typing/CodeViewer";
 import TypingInput from "../components/typing/TypingInput";
-import DifficultyBadge from "../components/typing/DifficultyBadge";
 import LiveStats from "../components/stats/LiveStats";
 import WpmChart from "../components/stats/WpmChart";
 import KeyboardHeatmap from "../components/stats/KeyboardHeatmap";
@@ -23,7 +22,6 @@ export default function DailyPage() {
   const challenges = useMemo(() => getDailyChallenges(todayStr), [todayStr]);
   const [results, setResults] = useState(() => getDailyResults(todayStr));
   const [activeIndex, setActiveIndex] = useState(() => {
-    // 첫 번째 미완료 챌린지로 시작
     const res = getDailyResults(todayStr);
     const idx = challenges.findIndex((c) => !res[c.id]);
     return idx === -1 ? 0 : idx;
@@ -41,13 +39,11 @@ export default function DailyPage() {
     [results, todayStr],
   );
 
-  // 챌린지 변경 시 리셋
   useEffect(() => {
     typing.resetTyping();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeIndex]);
 
-  // 타이핑 완료 시 결과 저장
   useEffect(() => {
     if (typing.status === "finished" && activeSnippet) {
       const score = calculateScore(
@@ -82,7 +78,7 @@ export default function DailyPage() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {/* 헤더 */}
       <div className="flex items-center justify-between">
         <div>
@@ -98,12 +94,10 @@ export default function DailyPage() {
         </div>
 
         <div className="flex items-center gap-4 text-sm">
-          {/* 연속 일수 */}
           <div className="text-center">
             <div className="text-2xl font-bold text-orange-400">{streak}</div>
             <div className="text-[10px] text-gray-500">연속 일수</div>
           </div>
-          {/* 오늘 총점 */}
           <div className="text-center">
             <div className="text-2xl font-bold text-emerald-400">
               {totalScore}
@@ -134,7 +128,6 @@ export default function DailyPage() {
                     : "border-gray-700/50 bg-gray-900/50 hover:border-gray-600"
               }`}
             >
-              {/* 완료 체크 */}
               {isCompleted && (
                 <span className="absolute top-2 right-2 text-emerald-400 text-lg">
                   ✓
@@ -156,7 +149,6 @@ export default function DailyPage() {
                 {challenge.language} · {challenge.code.length}자
               </div>
 
-              {/* 완료 결과 */}
               {result && grade && (
                 <div className="mt-2 pt-2 border-t border-gray-700/30 flex items-center gap-2 text-xs">
                   <span className={`font-bold ${grade.color}`}>
@@ -195,7 +187,7 @@ export default function DailyPage() {
       {/* 선택된 챌린지 — 타이핑 영역 */}
       {activeSnippet && (
         <>
-          {/* 실시간 통계 */}
+          {/* 컴팩트 통계 바 */}
           <LiveStats
             wpm={typing.wpm}
             accuracy={typing.accuracy}
@@ -203,16 +195,9 @@ export default function DailyPage() {
             progress={typing.progress}
             correctCount={typing.correctCount}
             incorrectCount={typing.incorrectCount}
-            typed={typing.typed}
-            originalLength={activeSnippet.code.length}
             status={typing.status}
             samples={typing.samples}
           />
-
-          {/* WPM 차트 */}
-          {typing.status !== "idle" && typing.samples.length >= 2 && (
-            <WpmChart samples={typing.samples} />
-          )}
 
           {/* 완료 시 점수 */}
           {typing.status === "finished" && results[activeSnippet.id] && (
@@ -238,7 +223,6 @@ export default function DailyPage() {
                 <span>{typing.formattedTime}</span>
               </div>
 
-              {/* 다음 챌린지 버튼 */}
               {activeIndex < challenges.length - 1 && (
                 <button
                   onClick={() => setActiveIndex(activeIndex + 1)}
@@ -250,46 +234,29 @@ export default function DailyPage() {
             </div>
           )}
 
-          {/* 원본 코드 */}
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <span className="text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  원본 코드
-                </span>
-                <span className="text-xs text-gray-600">
-                  Round {activeIndex + 1}
-                </span>
-              </div>
-              <DifficultyBadge snippet={activeSnippet} showAnalysis />
-            </div>
-            <CodeViewer
-              snippet={activeSnippet}
-              progress={typing.progress}
-              status={typing.status}
-            />
-          </div>
+          {/* 코드 뷰어 + 타이핑 */}
+          <CodeViewer
+            snippet={activeSnippet}
+            progress={typing.progress}
+            status={typing.status}
+          />
+          <TypingInput
+            snippet={activeSnippet}
+            charResults={typing.charResults}
+            typed={typing.typed}
+            status={typing.status}
+            onKeyDown={typing.handleKeyDown}
+            onReset={typing.resetTyping}
+            wpm={typing.wpm}
+            accuracy={typing.accuracy}
+            formattedTime={typing.formattedTime}
+            progress={typing.progress}
+          />
 
-          {/* 타이핑 입력 */}
-          <div className="space-y-2">
-            <span className="text-xs font-medium text-gray-500 uppercase tracking-wider">
-              타이핑
-            </span>
-            <TypingInput
-              snippet={activeSnippet}
-              charResults={typing.charResults}
-              typed={typing.typed}
-              status={typing.status}
-              onKeyDown={typing.handleKeyDown}
-              onReset={typing.resetTyping}
-              wpm={typing.wpm}
-              accuracy={typing.accuracy}
-              formattedTime={typing.formattedTime}
-              progress={typing.progress}
-            />
-          </div>
-
-          {/* 히트맵 (오타 있을 때만) */}
+          {/* 분석 도구 — 하단 고정 (레이아웃 시프트 방지) */}
+          {typing.status !== "idle" && typing.samples.length >= 2 && (
+            <WpmChart samples={typing.samples} />
+          )}
           {typing.status !== "idle" && typing.incorrectCount > 0 && (
             <KeyboardHeatmap mistakes={typing.mistakes} />
           )}

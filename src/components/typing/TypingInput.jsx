@@ -37,54 +37,23 @@ export default function TypingInput({
   const isFinished = status === "finished";
 
   return (
-    <div className="space-y-3 animate-fade-in">
-      {/* 상태 바 */}
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 justify-between">
-        <div className="flex items-center gap-3 sm:gap-4 text-xs sm:text-sm">
-          <div className="flex items-center gap-1.5">
-            <span className="text-gray-500">WPM</span>
-            <span className="text-emerald-400 font-bold font-mono">{wpm}</span>
-          </div>
-          <div className="flex items-center gap-1.5">
-            <span className="text-gray-500">정확도</span>
-            <span
-              className={`font-bold font-mono ${
-                accuracy >= 95
-                  ? "text-emerald-400"
-                  : accuracy >= 80
-                    ? "text-yellow-400"
-                    : "text-red-400"
-              }`}
-            >
-              {accuracy}%
-            </span>
-          </div>
-          <div className="flex items-center gap-1.5">
-            <span className="text-gray-500">시간</span>
-            <span className="text-gray-300 font-mono">{formattedTime}</span>
-          </div>
-          <div className="items-center gap-1.5 hidden sm:flex">
-            <span className="text-gray-500">진행</span>
-            <span className="text-gray-300 font-mono">{progress}%</span>
-          </div>
+    <div className="space-y-2 animate-fade-in">
+      {/* 진행률 바 + 리셋 */}
+      <div className="flex items-center gap-3">
+        <div className="flex-1 h-1 bg-gray-800 rounded-full overflow-hidden">
+          <div
+            className={`h-full rounded-full transition-all duration-150 ${
+              isFinished ? "bg-emerald-500" : "bg-emerald-500/80"
+            }`}
+            style={{ width: `${progress}%` }}
+          />
         </div>
-
         <button
           onClick={onReset}
-          className="px-3 py-1 rounded-lg text-xs font-medium text-gray-400 hover:text-gray-200 hover:bg-gray-800 border border-gray-700 transition-colors"
+          className="px-2.5 py-1 rounded-lg text-xs font-medium text-gray-400 hover:text-gray-200 hover:bg-gray-800 border border-gray-700 transition-colors shrink-0"
         >
           🔄 다시 시작
         </button>
-      </div>
-
-      {/* 진행률 바 */}
-      <div className="h-1 bg-gray-800 rounded-full overflow-hidden">
-        <div
-          className={`h-full rounded-full transition-all duration-150 ${
-            isFinished ? "bg-emerald-500" : "bg-emerald-500/80"
-          }`}
-          style={{ width: `${progress}%` }}
-        />
       </div>
 
       {/* 타이핑 영역 */}

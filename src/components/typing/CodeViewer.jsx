@@ -15,7 +15,7 @@ export default function CodeViewer({ snippet, progress = 0, status = "idle" }) {
     wordWrap: "on",
     contextmenu: false,
     scrollbar: {
-      vertical: "hidden",
+      vertical: "auto",
       horizontal: "auto",
     },
     overviewRulerLanes: 0,
@@ -27,7 +27,7 @@ export default function CodeViewer({ snippet, progress = 0, status = "idle" }) {
   };
 
   const lineCount = snippet.code.split("\n").length;
-  const editorHeight = Math.max(lineCount * 22 + 40, 100);
+  const editorHeight = Math.min(Math.max(lineCount * 22 + 40, 100), 350);
 
   // 상태에 따른 테두리 색상
   const borderColor =

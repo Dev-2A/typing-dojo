@@ -3,27 +3,41 @@ import CodeViewer from "../components/typing/CodeViewer";
 import SnippetSelector from "../components/typing/SnippetSelector";
 import TypingInput from "../components/typing/TypingInput";
 import DiffOverlay from "../components/typing/DiffOverlay";
-import DifficultyBadge from "../components/typing/DifficultyBadge";
 import ErrorSummary from "../components/typing/ErrorSummary";
 import LiveStats from "../components/stats/LiveStats";
 import WpmChart from "../components/stats/WpmChart";
 import KeyboardHeatmap from "../components/stats/KeyboardHeatmap";
 import ResultReport from "../components/stats/ResultReport";
 import useTyping from "../hooks/useTyping";
-import { getRandomSnippet } from "../data/snippets";
+import { LANGUAGES, getRandomSnippet } from "../data/snippets";
 import { saveResult } from "../utils/storage";
-import { calculateScore, getGrade } from "../utils/difficulty";
+import {
+  calculateScore,
+  getGrade,
+  DIFFICULTY_CONFIG,
+} from "../utils/difficulty";
+
+const ANALYSIS_TABS = [
+  { id: "diff", label: "Diff", icon: "📊" },
+  { id: "errors", label: "오타", icon: "🔤" },
+  { id: "heatmap", label: "히트맵", icon: "⌨️" },
+  { id: "wpm", label: "WPM", icon: "📈" },
+];
 
 export default function PracticePage() {
   const [snippet, setSnippet] = useState(() => getRandomSnippet());
-  const [showDiff, setShowDiff] = useState(true);
-  const [showHeatmap, setShowHeatmap] = useState(true);
+  const [showSelector, setShowSelector] = useState(false);
+  const [analysisTab, setAnalysisTab] = useState("diff");
   const [lastScore, setLastScore] = useState(null);
   const typing = useTyping(snippet?.code || "");
+
+  const langInfo = LANGUAGES.find((l) => l.id === snippet?.language);
+  const diffConfig = snippet ? DIFFICULTY_CONFIG[snippet.difficulty] : null;
 
   const handleSelectSnippet = (newSnippet) => {
     setSnippet(newSnippet);
     setLastScore(null);
+    setShowSelector(false);
   };
 
   const handleNextSnippet = () => {
@@ -69,16 +83,59 @@ export default function PracticePage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [typing.status]);
 
-  // 완료 후 → 결과 리포트 화면
+  // ── 컴팩트 스니펫 정보 바 ──
+  const snippetBar = (
+    <div className="flex items-center justify-between gap-2 rounded-xl border border-gray-700/50 bg-gray-900/50 px-3 sm:px-4 py-2.5">
+      <div className="flex items-center gap-2 min-w-0">
+        <span className="text-lg shrink-0">{langInfo?.icon}</span>
+        <span className="text-sm text-gray-200 truncate font-medium">
+          {snippet?.title}
+        </span>
+        {diffConfig && (
+          <span
+            className={`text-[10px] px-1.5 py-0.5 rounded border shrink-0 ${diffConfig.bgColor} ${diffConfig.color} ${diffConfig.borderColor}`}
+          >
+            {diffConfig.icon} {diffConfig.label}
+          </span>
+        )}
+        <span className="text-[10px] text-gray-600 shrink-0 hidden sm:inline">
+          {snippet?.code.length}자 · {snippet?.code.split("\n").length}줄
+        </span>
+      </div>
+      <div className="flex items-center gap-1.5 shrink-0">
+        <button
+          onClick={handleNextSnippet}
+          className="px-2.5 py-1.5 rounded-lg text-xs font-medium bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/25 transition-colors"
+        >
+          🎲 랜덤
+        </button>
+        <button
+          onClick={() => setShowSelector(!showSelector)}
+          className={`px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+            showSelector
+              ? "bg-gray-700 text-gray-200 border border-gray-600"
+              : "text-gray-400 hover:text-gray-200 hover:bg-gray-800 border border-gray-700"
+          }`}
+        >
+          {showSelector ? "✕ 닫기" : "📋 변경"}
+        </button>
+      </div>
+    </div>
+  );
+
+  // ── 완료 → 결과 리포트 ──
   if (typing.status === "finished" && lastScore && snippet) {
     return (
-      <div className="space-y-6">
-        {/* 스니펫 선택기는 유지 */}
-        <SnippetSelector
-          onSelect={handleSelectSnippet}
-          currentSnippetId={snippet.id}
-        />
-
+      <div className="space-y-3">
+        {snippetBar}
+        {showSelector && (
+          <div className="animate-fade-in">
+            <SnippetSelector
+              onSelect={handleSelectSnippet}
+              currentSnippetId={snippet.id}
+            />
+          </div>
+        )}
         <ResultReport
           snippet={snippet}
           wpm={typing.wpm}
@@ -98,16 +155,23 @@ export default function PracticePage() {
     );
   }
 
-  // 타이핑 진행 중 / 대기 → 기존 UI
+  // ── 타이핑 진행 / 대기 ──
   return (
-    <div className="space-y-6">
-      {/* 스니펫 선택기 */}
-      <SnippetSelector
-        onSelect={handleSelectSnippet}
-        currentSnippetId={snippet?.id}
-      />
+    <div className="space-y-3">
+      {/* 컴팩트 스니펫 바 */}
+      {snippetBar}
 
-      {/* 실시간 통계 대시보드 */}
+      {/* 펼침 가능한 스니펫 선택기 */}
+      {showSelector && (
+        <div className="animate-fade-in">
+          <SnippetSelector
+            onSelect={handleSelectSnippet}
+            currentSnippetId={snippet?.id}
+          />
+        </div>
+      )}
+
+      {/* 컴팩트 통계 바 — 항상 표시 */}
       <LiveStats
         wpm={typing.wpm}
         accuracy={typing.accuracy}
@@ -115,45 +179,18 @@ export default function PracticePage() {
         progress={typing.progress}
         correctCount={typing.correctCount}
         incorrectCount={typing.incorrectCount}
-        typed={typing.typed}
-        originalLength={snippet?.code.length || 0}
         status={typing.status}
         samples={typing.samples}
       />
 
-      {/* WPM 실시간 차트 */}
-      {typing.status !== "idle" && typing.samples.length >= 2 && (
-        <WpmChart samples={typing.samples} />
-      )}
-
-      {/* 원본 코드 뷰어 */}
+      {/* 코드 뷰어 + 타이핑 입력 */}
       {snippet && (
-        <div className="space-y-2">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <span className="text-xs font-medium text-gray-500 uppercase tracking-wider">
-                원본 코드
-              </span>
-              <span className="text-xs text-gray-600">
-                — 아래 코드를 그대로 타이핑하세요
-              </span>
-            </div>
-            <DifficultyBadge snippet={snippet} showAnalysis />
-          </div>
+        <>
           <CodeViewer
             snippet={snippet}
             progress={typing.progress}
             status={typing.status}
           />
-        </div>
-      )}
-
-      {/* 타이핑 입력 영역 */}
-      {snippet && (
-        <div className="space-y-2">
-          <span className="text-xs font-medium text-gray-500 uppercase tracking-wider">
-            타이핑
-          </span>
           <TypingInput
             snippet={snippet}
             charResults={typing.charResults}
@@ -166,49 +203,57 @@ export default function PracticePage() {
             formattedTime={typing.formattedTime}
             progress={typing.progress}
           />
-        </div>
+        </>
       )}
 
-      {/* 분석 패널 */}
+      {/* 분석 탭 패널 */}
       {snippet && typing.status === "typing" && (
-        <div className="space-y-4">
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => setShowDiff(!showDiff)}
-              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
-                showDiff
-                  ? "bg-emerald-500/15 text-emerald-400 border border-emerald-500/30"
-                  : "text-gray-400 hover:text-gray-200 hover:bg-gray-800 border border-gray-700"
-              }`}
-            >
-              {showDiff ? "📊 Diff 숨기기" : "📊 Diff 보기"}
-            </button>
-            <button
-              onClick={() => setShowHeatmap(!showHeatmap)}
-              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
-                showHeatmap
-                  ? "bg-emerald-500/15 text-emerald-400 border border-emerald-500/30"
-                  : "text-gray-400 hover:text-gray-200 hover:bg-gray-800 border border-gray-700"
-              }`}
-            >
-              {showHeatmap ? "⌨️ 히트맵 숨기기" : "⌨️ 히트맵 보기"}
-            </button>
+        <div className="space-y-2 animate-fade-in">
+          {/* 탭 버튼 */}
+          <div className="flex gap-1">
+            {ANALYSIS_TABS.map((tab) => (
+              <button
+                key={tab.id}
+                onClick={() => setAnalysisTab(tab.id)}
+                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                  analysisTab === tab.id
+                    ? "bg-emerald-500/15 text-emerald-400 border border-emerald-500/30"
+                    : "text-gray-500 hover:text-gray-300 hover:bg-gray-800/50 border border-transparent"
+                }`}
+              >
+                {tab.icon} {tab.label}
+              </button>
+            ))}
           </div>
 
-          {showDiff && (
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-              <div className="lg:col-span-2">
-                <DiffOverlay originalCode={snippet.code} typed={typing.typed} />
-              </div>
-              <div>
+          {/* 탭 콘텐츠 */}
+          <div className="max-h-96 overflow-y-auto">
+            {analysisTab === "diff" && (
+              <DiffOverlay
+                originalCode={snippet.code}
+                typed={typing.typed}
+              />
+            )}
+            {analysisTab === "errors" &&
+              (typing.incorrectCount > 0 ? (
                 <ErrorSummary mistakes={typing.mistakes} />
-              </div>
-            </div>
-          )}
-
-          {showHeatmap && typing.incorrectCount > 0 && (
-            <KeyboardHeatmap mistakes={typing.mistakes} />
-          )}
+              ) : (
+                <div className="rounded-xl border border-gray-700/50 bg-gray-900/50 py-8 text-center text-sm text-gray-500">
+                  ✨ 아직 오타가 없습니다
+                </div>
+              ))}
+            {analysisTab === "heatmap" && (
+              <KeyboardHeatmap mistakes={typing.mistakes} />
+            )}
+            {analysisTab === "wpm" &&
+              (typing.samples.length >= 2 ? (
+                <WpmChart samples={typing.samples} />
+              ) : (
+                <div className="rounded-xl border border-gray-700/50 bg-gray-900/50 py-8 text-center text-sm text-gray-500">
+                  📈 데이터를 수집 중입니다...
+                </div>
+              ))}
+          </div>
         </div>
       )}
     </div>

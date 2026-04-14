@@ -1,40 +1,32 @@
 import { useMemo } from "react";
 import {
   KEYBOARD_ROWS,
-  buildKeyLookup,
   buildHeatmapData,
   getHeatIntensity,
 } from "../../utils/keyboard";
 
-/**
- * 키보드 히트맵 — 자주 틀리는 키를 열 분포로 시각화
- */
 export default function KeyboardHeatmap({ mistakes }) {
   const heatmap = useMemo(() => buildHeatmapData(mistakes), [mistakes]);
 
-  // 최대 오류 수 (색상 스케일 기준)
   const maxCount = useMemo(() => {
     const counts = Object.values(heatmap).map((h) => h.errorCount + h.hitCount);
     return Math.max(...counts, 1);
   }, [heatmap]);
 
-  // 전체 오류 수
   const totalErrors = useMemo(() => {
     return Object.values(heatmap).reduce((sum, h) => sum + h.errorCount, 0);
   }, [heatmap]);
 
   if (totalErrors === 0) {
     return (
-      <div className="rounded-xl border border-gray-700/50 bg-gray-900/50 p-6 text-center">
+      <div className="rounded-xl border border-gray-700/50 bg-gray-900/50 p-6 text-center animate-fade-in">
         <span className="text-3xl block mb-2">✨</span>
         <p className="text-sm text-gray-400">오타가 없습니다! 완벽해요!</p>
       </div>
     );
   }
 
-  // 키 하나에 대한 색상 계산
   const getKeyColor = (keyChar) => {
-    // key와 shift 양쪽 체크
     const data =
       heatmap[keyChar] ||
       heatmap[keyChar.toLowerCase()] ||
@@ -48,47 +40,41 @@ export default function KeyboardHeatmap({ mistakes }) {
     );
     const total = data.errorCount + data.hitCount;
 
-    if (intensity > 0.7) {
+    if (intensity > 0.7)
       return {
         bg: "bg-red-500/40",
         text: "text-red-300",
         ring: "ring-1 ring-red-500/50",
         count: total,
       };
-    }
-    if (intensity > 0.4) {
+    if (intensity > 0.4)
       return {
         bg: "bg-orange-500/30",
         text: "text-orange-300",
         ring: "ring-1 ring-orange-500/40",
         count: total,
       };
-    }
-    if (intensity > 0.15) {
+    if (intensity > 0.15)
       return {
         bg: "bg-yellow-500/20",
         text: "text-yellow-300",
         ring: "ring-1 ring-yellow-500/30",
         count: total,
       };
-    }
-    if (intensity > 0) {
+    if (intensity > 0)
       return {
         bg: "bg-yellow-500/10",
         text: "text-yellow-200/80",
         ring: "",
         count: total,
       };
-    }
     return { bg: "bg-gray-800/80", text: "text-gray-500", count: 0 };
   };
 
-  // 행별 오프셋 (키보드 stagger)
   const rowOffsets = [0, 0.4, 0.7, 1.1, 2];
 
   return (
-    <div className="rounded-xl border border-gray-700/50 bg-gray-900/50 p-4 space-y-3">
-      {/* 헤더 */}
+    <div className="rounded-xl border border-gray-700/50 bg-gray-900/50 p-3 sm:p-4 space-y-3 animate-fade-in">
       <div className="flex items-center justify-between">
         <span className="text-xs font-medium text-gray-500 uppercase tracking-wider">
           키보드 히트맵
@@ -111,93 +97,84 @@ export default function KeyboardHeatmap({ mistakes }) {
         <span>많음</span>
       </div>
 
-      {/* 키보드 */}
-      <div className="flex flex-col gap-1 items-center">
-        {KEYBOARD_ROWS.map((row, rowIdx) => (
-          <div
-            key={rowIdx}
-            className="flex gap-1"
-            style={{ paddingLeft: `${rowOffsets[rowIdx] * 2.2}rem` }}
-          >
-            {row.map((keyData) => {
-              const color = getKeyColor(keyData.key);
-              const shiftColor = keyData.shift
-                ? getKeyColor(keyData.shift)
-                : null;
+      {/* 키보드 — 모바일에서 가로 스크롤 */}
+      <div className="overflow-x-auto pb-2">
+        <div className="flex flex-col gap-1 items-center min-w-125">
+          {KEYBOARD_ROWS.map((row, rowIdx) => (
+            <div
+              key={rowIdx}
+              className="flex gap-1"
+              style={{ paddingLeft: `${rowOffsets[rowIdx] * 2.2}rem` }}
+            >
+              {row.map((keyData) => {
+                const color = getKeyColor(keyData.key);
+                const shiftColor = keyData.shift
+                  ? getKeyColor(keyData.shift)
+                  : null;
+                const combinedCount = color.count + (shiftColor?.count || 0);
+                const finalColor =
+                  combinedCount > 0
+                    ? shiftColor && shiftColor.count > color.count
+                      ? shiftColor
+                      : color
+                    : color;
+                const isSpace = keyData.key === " ";
+                const displayKey = keyData.label || keyData.key;
 
-              // shift 문자도 히트맵에 반영
-              const combinedCount = color.count + (shiftColor?.count || 0);
-              const finalColor =
-                combinedCount > 0
-                  ? shiftColor && shiftColor.count > color.count
-                    ? shiftColor
-                    : color
-                  : color;
-
-              const isSpace = keyData.key === " ";
-              const displayKey = keyData.label || keyData.key;
-
-              return (
-                <div
-                  key={keyData.key}
-                  className={`
-                    relative flex flex-col items-center justify-center rounded-md
-                    border border-gray-700/40 transition-all cursor-default
-                    ${finalColor.bg} ${finalColor.ring || ""}
-                    ${isSpace ? "h-8" : "h-10"}
-                  `}
-                  style={{
-                    width: isSpace ? "16rem" : `${keyData.width * 2.5}rem`,
-                    minWidth: isSpace ? "10rem" : "2.2rem",
-                  }}
-                  title={
-                    combinedCount > 0
-                      ? `${displayKey}: 오타 ${combinedCount}회`
-                      : displayKey
-                  }
-                >
-                  {/* Shift 문자 (좌상단) */}
-                  {keyData.shift && !isSpace && (
-                    <span
-                      className={`text-[8px] leading-none ${
-                        shiftColor && shiftColor.count > 0
-                          ? shiftColor.text
-                          : "text-gray-600"
-                      }`}
-                    >
-                      {keyData.shift}
-                    </span>
-                  )}
-
-                  {/* 기본 문자 */}
-                  <span
-                    className={`text-xs font-mono leading-none ${finalColor.text}`}
+                return (
+                  <div
+                    key={keyData.key}
+                    className={`
+                      relative flex flex-col items-center justify-center rounded-md
+                      border border-gray-700/40 transition-all cursor-default
+                      ${finalColor.bg} ${finalColor.ring || ""}
+                      ${isSpace ? "h-7 sm:h-8" : "h-8 sm:h-10"}
+                    `}
+                    style={{
+                      width: isSpace ? "14rem" : `${keyData.width * 2.2}rem`,
+                      minWidth: isSpace ? "8rem" : "2rem",
+                    }}
+                    title={
+                      combinedCount > 0
+                        ? `${displayKey}: 오타 ${combinedCount}회`
+                        : displayKey
+                    }
                   >
-                    {displayKey}
-                  </span>
-
-                  {/* 오타 횟수 배지 */}
-                  {combinedCount > 0 && (
-                    <span className="absolute -top-1.5 -right-1.5 text-[8px] font-bold bg-red-500 text-white rounded-full w-4 h-4 flex items-center justify-center">
-                      {combinedCount > 9 ? "9+" : combinedCount}
+                    {keyData.shift && !isSpace && (
+                      <span
+                        className={`text-[7px] sm:text-[8px] leading-none ${
+                          shiftColor && shiftColor.count > 0
+                            ? shiftColor.text
+                            : "text-gray-600"
+                        }`}
+                      >
+                        {keyData.shift}
+                      </span>
+                    )}
+                    <span
+                      className={`text-[10px] sm:text-xs font-mono leading-none ${finalColor.text}`}
+                    >
+                      {displayKey}
                     </span>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        ))}
+                    {combinedCount > 0 && (
+                      <span className="absolute -top-1.5 -right-1.5 text-[7px] sm:text-[8px] font-bold bg-red-500 text-white rounded-full w-3.5 h-3.5 sm:w-4 sm:h-4 flex items-center justify-center">
+                        {combinedCount > 9 ? "9+" : combinedCount}
+                      </span>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          ))}
+        </div>
       </div>
 
-      {/* 코드 특수문자 집중 분석 */}
+      {/* 코드 특수문자 분석 */}
       <CodeCharAnalysis heatmap={heatmap} />
     </div>
   );
 }
 
-/**
- * 코드 특수문자 집중 분석 — 괄호, 세미콜론 등
- */
 function CodeCharAnalysis({ heatmap }) {
   const codeChars = useMemo(() => {
     const targets = [

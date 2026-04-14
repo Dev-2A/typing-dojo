@@ -43,10 +43,12 @@ export default function SnippetSelector({ onSelect, currentSnippetId }) {
       <LanguageCard selectedLanguage={language} onSelect={setLanguage} />
 
       {/* 난이도 + 액션 */}
-      <div className="flex flex-wrap items-center gap-3">
+      <div className="flex flex-wrap items-center gap-2 sm:gap-3">
         {/* 난이도 필터 */}
-        <div className="flex items-center gap-1.5">
-          <span className="text-xs text-gray-500 mr-1">난이도</span>
+        <div className="flex items-center gap-1 sm:gap-1.5 overflow-x-auto">
+          <span className="text-xs text-gray-500 mr-0.5 sm:mr-1 shrink-0">
+            난이도
+          </span>
           {DIFFICULTIES.map((diff) => {
             const config =
               diff.id !== "all" ? DIFFICULTY_CONFIG[diff.id] : null;
@@ -54,7 +56,7 @@ export default function SnippetSelector({ onSelect, currentSnippetId }) {
               <button
                 key={diff.id}
                 onClick={() => setDifficulty(diff.id)}
-                className={`px-2.5 py-1 rounded-md text-xs font-medium transition-colors ${
+                className={`px-2 sm:px-2.5 py-1 rounded-md text-xs font-medium transition-colors whitespace-nowrap ${
                   difficulty === diff.id
                     ? "bg-emerald-500/15 text-emerald-400 border border-emerald-500/30"
                     : "text-gray-400 hover:text-gray-200 hover:bg-gray-800 border border-transparent"
@@ -72,22 +74,22 @@ export default function SnippetSelector({ onSelect, currentSnippetId }) {
           <button
             onClick={handleRandom}
             disabled={filtered.length === 0}
-            className="px-3 py-1.5 rounded-lg text-xs font-medium bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/25 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+            className="px-3 py-1.5 rounded-lg text-xs font-medium bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/25 transition-colors disabled:opacity-40 disabled:cursor-not-allowed whitespace-nowrap"
           >
-            🎲 랜덤 선택
+            🎲 랜덤
           </button>
           <button
             onClick={() => setIsListOpen(!isListOpen)}
-            className="px-3 py-1.5 rounded-lg text-xs font-medium text-gray-400 hover:text-gray-200 hover:bg-gray-800 border border-gray-700 transition-colors"
+            className="px-3 py-1.5 rounded-lg text-xs font-medium text-gray-400 hover:text-gray-200 hover:bg-gray-800 border border-gray-700 transition-colors whitespace-nowrap"
           >
-            {isListOpen ? "목록 닫기" : `📋 목록 (${filtered.length})`}
+            {isListOpen ? "닫기" : `📋 ${filtered.length}개`}
           </button>
         </div>
       </div>
 
-      {/* 스니펫 목록 드롭다운 */}
+      {/* 스니펫 목록 */}
       {isListOpen && (
-        <div className="rounded-xl border border-gray-700/50 bg-gray-900/80 max-h-72 overflow-y-auto">
+        <div className="rounded-xl border border-gray-700/50 bg-gray-900/80 max-h-72 overflow-y-auto animate-fade-in">
           {filtered.length === 0 ? (
             <div className="px-4 py-8 text-center text-gray-500 text-sm">
               해당 조건의 스니펫이 없습니다
@@ -100,11 +102,11 @@ export default function SnippetSelector({ onSelect, currentSnippetId }) {
                   onSelect(snippet);
                   setIsListOpen(false);
                 }}
-                className={`w-full px-4 py-3 flex items-center gap-3 text-left hover:bg-gray-800/60 transition-colors border-b border-gray-800/50 last:border-b-0 ${
+                className={`w-full px-3 sm:px-4 py-3 flex items-center gap-2 sm:gap-3 text-left hover:bg-gray-800/60 transition-colors border-b border-gray-800/50 last:border-b-0 ${
                   currentSnippetId === snippet.id ? "bg-emerald-500/10" : ""
                 }`}
               >
-                <span className="text-lg">
+                <span className="text-lg shrink-0">
                   {LANGUAGES.find((l) => l.id === snippet.language)?.icon}
                 </span>
                 <div className="flex-1 min-w-0">

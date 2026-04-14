@@ -11,20 +11,20 @@ function App() {
   const renderPage = () => {
     switch (currentPage) {
       case "daily":
-        return <DailyPage />;
+        return <DailyPage key="daily" />;
       case "stats":
-        return <StatsPage />;
+        return <StatsPage key="stats" />;
       case "practice":
       default:
-        return <PracticePage />;
+        return <PracticePage key="practice" />;
     }
   };
 
   return (
     <div className="min-h-screen bg-gray-950 text-gray-100 flex flex-col">
       <Header currentPage={currentPage} onNavigate={setCurrentPage} />
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 py-6">
-        {renderPage()}
+      <main className="flex-1 max-w-7xl w-full mx-auto px-3 sm:px-4 py-4 sm:py-6">
+        <div className="animate-fade-in">{renderPage()}</div>
       </main>
       <Footer />
     </div>

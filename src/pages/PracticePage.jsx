@@ -4,8 +4,11 @@ import SnippetSelector from "../components/typing/SnippetSelector";
 import TypingInput from "../components/typing/TypingInput";
 import DiffOverlay from "../components/typing/DiffOverlay";
 import ErrorSummary from "../components/typing/ErrorSummary";
+import LiveStats from "../components/stats/LiveStats";
+import WpmChart from "../components/stats/WpmChart";
 import useTyping from "../hooks/useTyping";
 import { getRandomSnippet } from "../data/snippets";
+import { saveResult } from "../utils/storage";
 
 export default function PracticePage() {
   const [snippet, setSnippet] = useState(() => getRandomSnippet());
@@ -16,10 +19,31 @@ export default function PracticePage() {
     setSnippet(newSnippet);
   };
 
+  // snippet 변경 시 리셋
   useEffect(() => {
     typing.resetTyping();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [snippet?.id]);
+
+  // 타이핑 완료 시 결과 저장
+  useEffect(() => {
+    if (typing.status === "finished" && snippet) {
+      saveResult({
+        snippetId: snippet.id,
+        language: snippet.language,
+        difficulty: snippet.difficulty,
+        title: snippet.title,
+        codeLength: snippet.code.length,
+        wpm: typing.wpm,
+        accuracy: typing.accuracy,
+        elapsed: typing.elapsed,
+        correctCount: typing.correctCount,
+        incorrectCount: typing.incorrectCount,
+        samples: typing.samples,
+      });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [typing.status]);
 
   return (
     <div className="space-y-6">
@@ -28,6 +52,25 @@ export default function PracticePage() {
         onSelect={handleSelectSnippet}
         currentSnippetId={snippet?.id}
       />
+
+      {/* 실시간 통계 대시보드 */}
+      <LiveStats
+        wpm={typing.wpm}
+        accuracy={typing.accuracy}
+        formattedTime={typing.formattedTime}
+        progress={typing.progress}
+        correctCount={typing.correctCount}
+        incorrectCount={typing.incorrectCount}
+        typed={typing.typed}
+        originalLength={snippet?.code.length || 0}
+        status={typing.status}
+        samples={typing.samples}
+      />
+
+      {/* WPM 실시간 차트 */}
+      {typing.status !== "idle" && typing.samples.length >= 2 && (
+        <WpmChart samples={typing.samples} />
+      )}
 
       {/* 원본 코드 뷰어 */}
       {snippet && (
@@ -69,10 +112,9 @@ export default function PracticePage() {
         </div>
       )}
 
-      {/* diff + 오타 분석 (타이핑 시작 후에만 표시) */}
+      {/* diff + 오타 분석 */}
       {snippet && typing.status !== "idle" && (
         <div className="space-y-4">
-          {/* diff 토글 */}
           <div className="flex items-center gap-2">
             <button
               onClick={() => setShowDiff(!showDiff)}
@@ -88,12 +130,9 @@ export default function PracticePage() {
 
           {showDiff && (
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-              {/* 라인 diff — 2/3 너비 */}
               <div className="lg:col-span-2">
                 <DiffOverlay originalCode={snippet.code} typed={typing.typed} />
               </div>
-
-              {/* 오타 분석 — 1/3 너비 */}
               <div>
                 <ErrorSummary mistakes={typing.mistakes} />
               </div>

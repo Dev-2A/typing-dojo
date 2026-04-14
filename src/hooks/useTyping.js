@@ -1,5 +1,6 @@
 import { useState, useCallback, useMemo } from "react";
 import useTimer from "./useTimer";
+import useWpmSampler from "./useWpmSampler";
 import {
   compareChars,
   calculateWPM,
@@ -14,7 +15,14 @@ import {
 export default function useTyping(originalCode = "") {
   const [typed, setTyped] = useState("");
   const [status, setStatus] = useState("idle");
-  const { elapsed, formattedTime, start, stop, reset } = useTimer();
+  const {
+    elapsed,
+    formattedTime,
+    start: startTimer,
+    stop: stopTimer,
+    reset: resetTimer,
+  } = useTimer();
+  const sampler = useWpmSampler();
 
   // 문자 비교 결과
   const charResults = useMemo(
@@ -22,7 +30,6 @@ export default function useTyping(originalCode = "") {
     [originalCode, typed],
   );
 
-  // 정타 / 오타 수
   const correctCount = useMemo(
     () => charResults.filter((c) => c.status === "correct").length,
     [charResults],
@@ -32,7 +39,6 @@ export default function useTyping(originalCode = "") {
     [charResults],
   );
 
-  // WPM, 정확도
   const wpm = useMemo(
     () => calculateWPM(typed.length, elapsed),
     [typed.length, elapsed],
@@ -42,13 +48,11 @@ export default function useTyping(originalCode = "") {
     [correctCount, typed.length],
   );
 
-  // 틀린 키 집계
   const mistakes = useMemo(
     () => collectMistakes(originalCode, typed),
     [originalCode, typed],
   );
 
-  // 진행률 (%)
   const progress = useMemo(() => {
     if (originalCode.length === 0) return 0;
     return Math.min(
@@ -65,17 +69,20 @@ export default function useTyping(originalCode = "") {
       // 타이핑 시작
       if (status === "idle") {
         setStatus("typing");
-        start();
+        startTimer();
+        sampler.start();
       }
 
-      // Tab → 스페이스 2칸 변환 (코드 인덴트)
+      // Tab → 스페이스 2칸
       if (e.key === "Tab") {
         e.preventDefault();
         setTyped((prev) => {
           const newTyped = prev + "  ";
+          sampler.update(newTyped.length, elapsed);
           if (isTypingComplete(originalCode, newTyped)) {
             setStatus("finished");
-            stop();
+            stopTimer();
+            sampler.stop();
           }
           return newTyped;
         });
@@ -87,9 +94,11 @@ export default function useTyping(originalCode = "") {
         e.preventDefault();
         setTyped((prev) => {
           const newTyped = prev + "\n";
+          sampler.update(newTyped.length, elapsed);
           if (isTypingComplete(originalCode, newTyped)) {
             setStatus("finished");
-            stop();
+            stopTimer();
+            sampler.stop();
           }
           return newTyped;
         });
@@ -99,32 +108,39 @@ export default function useTyping(originalCode = "") {
       // Backspace
       if (e.key === "Backspace") {
         e.preventDefault();
-        setTyped((prev) => prev.slice(0, -1));
+        setTyped((prev) => {
+          const newTyped = prev.slice(0, -1);
+          sampler.update(newTyped.length, elapsed);
+          return newTyped;
+        });
         return;
       }
 
-      // 일반 문자 (길이 1인 printable 문자만)
+      // 일반 문자
       if (e.key.length === 1) {
         e.preventDefault();
         setTyped((prev) => {
           const newTyped = prev + e.key;
+          sampler.update(newTyped.length, elapsed);
           if (isTypingComplete(originalCode, newTyped)) {
             setStatus("finished");
-            stop();
+            stopTimer();
+            sampler.stop();
           }
           return newTyped;
         });
       }
     },
-    [status, originalCode, start, stop],
+    [status, originalCode, elapsed, startTimer, stopTimer, sampler],
   );
 
   // 리셋
   const resetTyping = useCallback(() => {
     setTyped("");
     setStatus("idle");
-    reset();
-  }, [reset]);
+    resetTimer();
+    sampler.reset();
+  }, [resetTimer, sampler]);
 
   return {
     typed,
@@ -140,5 +156,6 @@ export default function useTyping(originalCode = "") {
     formattedTime,
     handleKeyDown,
     resetTyping,
+    samples: sampler.samples,
   };
 }

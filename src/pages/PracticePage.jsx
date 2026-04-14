@@ -7,6 +7,7 @@ import DifficultyBadge from "../components/typing/DifficultyBadge";
 import ErrorSummary from "../components/typing/ErrorSummary";
 import LiveStats from "../components/stats/LiveStats";
 import WpmChart from "../components/stats/WpmChart";
+import KeyboardHeatmap from "../components/stats/KeyboardHeatmap";
 import useTyping from "../hooks/useTyping";
 import { getRandomSnippet } from "../data/snippets";
 import { saveResult } from "../utils/storage";
@@ -15,6 +16,7 @@ import { calculateScore, getGrade } from "../utils/difficulty";
 export default function PracticePage() {
   const [snippet, setSnippet] = useState(() => getRandomSnippet());
   const [showDiff, setShowDiff] = useState(true);
+  const [showHeatmap, setShowHeatmap] = useState(true);
   const [lastScore, setLastScore] = useState(null);
   const typing = useTyping(snippet?.code || "");
 
@@ -23,14 +25,12 @@ export default function PracticePage() {
     setLastScore(null);
   };
 
-  // snippet 변경 시 리셋
   useEffect(() => {
     typing.resetTyping();
     setLastScore(null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [snippet?.id]);
 
-  // 타이핑 완료 시 결과 저장 + 점수 계산
   useEffect(() => {
     if (typing.status === "finished" && snippet) {
       const score = calculateScore(
@@ -40,7 +40,6 @@ export default function PracticePage() {
         snippet.code.length,
       );
       const grade = getGrade(score);
-
       setLastScore({ score, ...grade });
 
       saveResult({
@@ -61,6 +60,8 @@ export default function PracticePage() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [typing.status]);
+
+  const hasErrors = typing.incorrectCount > 0;
 
   return (
     <div className="space-y-6">
@@ -155,9 +156,10 @@ export default function PracticePage() {
         </div>
       )}
 
-      {/* diff + 오타 분석 */}
+      {/* 분석 패널 (타이핑 시작 후에만) */}
       {snippet && typing.status !== "idle" && (
         <div className="space-y-4">
+          {/* 토글 버튼 */}
           <div className="flex items-center gap-2">
             <button
               onClick={() => setShowDiff(!showDiff)}
@@ -169,8 +171,19 @@ export default function PracticePage() {
             >
               {showDiff ? "📊 Diff 숨기기" : "📊 Diff 보기"}
             </button>
+            <button
+              onClick={() => setShowHeatmap(!showHeatmap)}
+              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                showHeatmap
+                  ? "bg-emerald-500/15 text-emerald-400 border border-emerald-500/30"
+                  : "text-gray-400 hover:text-gray-200 hover:bg-gray-800 border border-gray-700"
+              }`}
+            >
+              {showHeatmap ? "⌨️ 히트맵 숨기기" : "⌨️ 히트맵 보기"}
+            </button>
           </div>
 
+          {/* Diff 패널 */}
           {showDiff && (
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
               <div className="lg:col-span-2">
@@ -181,6 +194,9 @@ export default function PracticePage() {
               </div>
             </div>
           )}
+
+          {/* 키보드 히트맵 */}
+          {showHeatmap && <KeyboardHeatmap mistakes={typing.mistakes} />}
         </div>
       )}
     </div>
